@@ -34,7 +34,7 @@ class NEC(nn.Module):
             h = self.embedding_net(state)
             qs = [dnd.lookup(h) for dnd in self.dnds]
 
-        return qs
+            return qs
 
 
 if __name__ == "__main__":
