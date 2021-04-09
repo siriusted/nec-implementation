@@ -1,8 +1,16 @@
 import numpy as np
 import torch
 import faiss
+import faiss.contrib.torch_utils # allows utilizing torch tensors as input to faiss indexes and functions
 from torch import nn
 from torch.nn import functional as F, Parameter
+
+def torch_replace_knn(xq, xb, k, metric=faiss.METRIC_L2):
+    if type(xb) is np.ndarray:
+        return faiss.knn_numpy(xq, xb, k, metric)
+
+    #TO BE COMPLETED later for fun
+    # for now just call .numpy() on torch tensors
 
 def _inverse_distance_kernel(h1, h2, delta = 1e-3):
     """
@@ -10,12 +18,16 @@ def _inverse_distance_kernel(h1, h2, delta = 1e-3):
     """
     return 1 / (torch.dist(h1, h2) + delta)
 
-def _knn_search(h, k):
+def _knn_search(queries, data, k):
     """
-    Perform approximate knn search on the hidden key
+    Perform exact knn search (should be replaced with approximate and extended to utilize GPU)
 
     Return the k nearest keys
     """
+    if type(queries) is torch.Tensor:
+        queries, data = queries.numpy(), data.numpy()
+
+    return faiss.knn(queries, data, k) # (distances, indexes)
 
 class DND(nn.Module):
     """
@@ -23,7 +35,7 @@ class DND(nn.Module):
     Neural Episodic Control (Pritzel et. al, 2017)
     """
 
-    def __init__(self, config = { "capacity": 5, "neighbours": 5, "key_size": 3 }):
+    def __init__(self, config):
         super(DND, self).__init__()
 
         self.capacity = config['capacity']
@@ -34,8 +46,7 @@ class DND(nn.Module):
         self.keys = Parameter(torch.ones(self.capacity, self.key_size) * 1e8) # use very large values to allow for low similarity with keys while warming up
         self.values = Parameter(torch.zeros(self.capacity))
 
-        self.keys_hash = {} # one idea is to use actual index as value in this hash
-        # here we also need to initialize an index for approximate search
+        self.keys_hash = { tuple(self.keys[0].detach().numpy()): 0 } # one idea is to use actual index as value in this hash
 
 
     def lookup(self, h):
@@ -53,9 +64,10 @@ class DND(nn.Module):
         5. return desired Q
         """
         with torch.no_grad():
-            neighbour_idxs = _knn_search(h, np.min(self.current_size, self.capacity))
+            distances, neighbour_idxs = _knn_search(h, self.keys, self.num_neighbours)
 
             # maintain lru here
+            # all neighbour_idxs should be set to recently used than all others
 
             # compute the actual Q
             w_i = torch.cat([_inverse_distance_kernel(h, h_i) for h_i in self.keys[neighbour_idxs]])
@@ -130,7 +142,26 @@ class DND(nn.Module):
         2. return Q
         """
 
+    def update(self):
+        """
+        This is a function to be called to update the index used for approximate search
+        """
+
 if __name__ == "__main__":
     #TODO: write unit tests
-    dnd = DND()
+    dnd = DND({ "capacity": 5, "neighbours": 5, "key_size": 3, "alpha": 0.5 })
     print(list(dnd.parameters()))
+    print("Testing with torch tensors")
+    data = torch.tensor([[1, 1], [2, 2], [8, 8], [9, 9]], dtype=torch.float32)
+    queries = torch.tensor([[3, 3], [5, 5], [7, 7]], dtype=torch.float32)
+
+    dists, idxs = _knn_search(queries, data, 2)
+    print(dists)
+    print(idxs)
+    print(type(dists), type(idxs))
+
+    print("Testing with numpy arrays")
+    dists, idxs = _knn_search(queries.numpy(), data.numpy(), 2)
+    print(dists)
+    print(idxs)
+    print(type(dists), type(idxs))
