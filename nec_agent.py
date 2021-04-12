@@ -1,4 +1,7 @@
 import numpy as np
+from torch.optim import RMSprop
+from torch.nn import MSELoss
+from memory import ReplayBuffer
 
 def _argmax(values):
     """
@@ -17,7 +20,13 @@ class NECAgent:
         self.train_eps = 1 # initializing agent to be fully exploratory
         self.eval_eps = config['eval_eps']
         self.num_actions = env.action_space.n
+        self.replay_buffer = ReplayBuffer(config['replay_size'])
+        self.batch_size = config['batch_size']
         self.train()
+
+        # make sure model is on appropriate device at this point before constructing optimizer
+        self.optimizer = RMSprop(self.nec_net.parameters(), lr = config['learning_rate'])
+        self.loss_fn = MSELoss()
 
 
     def train(self):
@@ -34,8 +43,8 @@ class NECAgent:
     def set_epsilon(self, eps):
         self.train_eps = eps
 
-    def step(self, state):
-        q_values = self.nec_net.lookup(state)
+    def step(self, obs):
+        q_values = self.nec_net.lookup(obs)
 
         eps = self.train_eps if self.training else self.eval_eps
 
@@ -56,4 +65,12 @@ class NECAgent:
             pass
 
     def optimize(self):
-        pass
+        """
+        Here, we sample from the replay buffer and train the NEC model end-to-end with backprop
+        """
+        observations, actions, returns = self.replay_buffer.sample(self.batch_size)
+        self.optimizer.zero_grad()
+        q_values = self.nec_net(observations)[:, actions] # pick q_values for chosen actions
+        loss = self.loss_fn(q_values, returns)
+        loss.backward()
+        self.optimizer.step()
