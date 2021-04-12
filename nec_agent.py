@@ -14,7 +14,7 @@ class NECAgent:
 
     def __init__(self, env, config):
         self.nec_net = config['NEC']
-        self.train_eps = config['train_eps']
+        self.train_eps = 1 # initializing agent to be fully exploratory
         self.eval_eps = config['eval_eps']
         self.num_actions = env.action_space.n
         self.train()
@@ -30,6 +30,9 @@ class NECAgent:
 
     def new_episode(self):
         pass
+
+    def set_epsilon(self, eps):
+        self.train_eps = eps
 
     def step(self, state):
         q_values = self.nec_net.lookup(state)
