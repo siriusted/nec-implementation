@@ -25,9 +25,32 @@ def _knn_search(queries, data, k):
     Return the k nearest keys
     """
     if type(queries) is torch.Tensor:
-        queries, data = queries.numpy(), data.numpy()
+        queries, data = queries.detach().numpy(), data.detach().numpy()
 
     return faiss.knn(queries, data, k) # (distances, indexes)
+
+def _combine_by_key(keys, values, op):
+    """
+    Combines duplicate keys' values using the operator op (max or mean)
+    """
+    keys = [tuple(key.detach().numpy()) for key in keys]
+    ks, vs = [], []
+    key_map = {}
+
+    if op == 'max':
+        for i, key in enumerate(keys):
+            if key in key_map:
+                idx = key_map[key]
+                old_val = vs[idx]
+                vs[idx] = values[i] if old_val < values[i] else old_val
+            else:
+                key_map[key] = len(ks)
+                ks.append(key)
+                vs.append(values[i])
+    elif op == 'mean':
+        pass #TODO
+
+    return np.array(ks), np.array(vs)
 
 class DND(nn.Module):
     """
@@ -47,100 +70,89 @@ class DND(nn.Module):
         self.values = Parameter(torch.zeros(self.capacity))
 
         self.keys_hash = { tuple(self.keys[0].detach().numpy()): 0 } # one idea is to use actual index as value in this hash
+        self.lru_list = np.linspace(1, self.capacity, self.capacity)
 
 
-    def lookup(self, h):
+    def lookup(self, key):
         """
-        To be used when going through DND without plans to keep gradients
+        To be used wkeyen going through DND without plans to keep gradients
 
         Params:
-            - h: state embedding to be looked up
+            - key: state embedding to be looked up
 
         Steps:
-        1. find k nearest neighbours of h (k := min(num_neighbours, len(keys/values)))
+        1. find k nearest neighbours of key
         2. compute Q with k nns
         3. maintain LRU neighbours idxs
-        4. call write with h and q
-        5. return desired Q
+        4. return desired Q
         """
         with torch.no_grad():
-            distances, neighbour_idxs = _knn_search(h, self.keys, self.num_neighbours)
+            sq_distances, neighbour_idxs = _knn_search(key, self.keys, self.num_neighbours)
 
             # maintain lru here
             # all neighbour_idxs should be set to recently used than all others
 
             # compute the actual Q
-            w_i = torch.cat([_inverse_distance_kernel(h, h_i) for h_i in self.keys[neighbour_idxs]])
+            w_i = torch.cat([_inverse_distance_kernel(key, h_i) for h_i in self.keys[neighbour_idxs]])
             w_i /= torch.sum(w_i)
             v_i = self.values[neighbour_idxs]
 
-            return torch.sum(w_i * v_i)
+            return torch.sum(w_i * v_i).item()
 
-    def write(self, h, q):
-        """
-        To be called during lookup without gradients
-
-        Params:
-            - h: embedding to be written
-            - q: value to be written
-
-        and probably also during training (naa, I think during training we should not do this,
-        rather we should find a way to allow the contents in memory to naturally change with backprop)
-
-        Steps:
-        1. is it existing?
-        2. if yes, update with q-learning update with high alpha
-        3. if no, insert q, paying attention to possible eviction based on LRU neighbours
-
-        This logic will not exist alone but in batch
-        """
-        pass
-
-    def update_batch(self, keys, values):
-        """
-        So how do we do this?
-
-        What information is needed?
-
-        Keys looked up during the episode
-        Values/returns computed for these keys
-
-        least recently used neighbours so we can remove them
-        """
-
-        # maybe its better to build these two in one for loop, test both for speed later on
-        # this is wrong because we need two indexes
-        # 1. for the index in the arguments passed in
-        # 2. for the index in the key hash
-        existing_idxs = np.asarray([ self.keys_hash[key] for key in keys if key in self.keys_hash ])
-        non_existing_idxs = np.asarray(
-            list(
-                set(np.arange(self.capacity)) - set(existing_idxs)
-            )
-        )
-
-
-        if len(existing_idxs):
-            self.values[existing_idxs] += self.alpha * (values[some_other_idx] - self.values[existing_idxs])
-
-        if len(non_existing_idxs):
-            lru_idxs = np.zeros((20, ))
-            self.keys[lru_idxs] = keys[non_existing_idxs]
-            self.values[lru_idxs] = values[non_existing_idxs]
-
-            #update keys of lru idxs in keys_hash
-            #maybe update lru
-
-    def forward(self, h):
+    def forward(self, keys):
         """
         Here we're along the gradient pathway
 
-        The hope is that during backward from an outer module,
+        during backward from an outer module,
         self.keys and self.values involved in computing Q are updated
 
         1. compute Q with knns
         2. return Q
         """
+
+        sq_distances, neighbour_idxs = _knn_search(keys, self.keys, self.num_neighbours)
+
+        # maintain lru_list here
+
+        # compute the actual Q
+        w_i = torch.cat([_inverse_distance_kernel(keys, h_i) for h_i in self.keys[neighbour_idxs]])
+        w_i /= torch.sum(w_i)
+        v_i = self.values[neighbour_idxs]
+
+        return torch.sum(w_i * v_i)
+
+
+    def update_batch(self, keys, values):
+        """
+        Update the DND with keys and values experienced from an episode
+        """
+        # first handle duplicates inside the batch of data by either taking the max or averaging
+        keys, values = _combine_by_key(keys, values, 'max') # returns keys as a tuple that can be used in keys_hash
+        match_idxs, match_dnd_idxs, new_idxs = [], [], []
+
+        # then group indices of exact matches and new keys
+        for i, key in enumerate(keys):
+            if key in self.keys_hash:
+                match_dnd_idxs.append(self.keys_hash[key])
+                match_idxs.append(i)
+            else:
+                new_idxs.append(i)
+
+        num_matches, num_new = len(match_idxs), len(new_idxs)
+        with torch.no_grad():
+            # update exact matches using dnd learning rate
+            if num_matches:
+                self.values[match_dnd_idxs] += self.alpha * (values[match_idxs] - self.values[match_dnd_idxs])
+                # make the associated dnd idxs MRU
+
+            if num_new:
+                lru_idxs = self.lru_list[: ]
+                self.keys[lru_idxs] = keys[new_idxs]
+                self.values[lru_idxs] = values[new_idxs]
+                # move to MRU position just before matches
+
+                #update self.keys_hash
+
 
     def update(self):
         """

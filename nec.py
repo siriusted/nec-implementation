@@ -9,32 +9,31 @@ class NEC(nn.Module):
         self.embedding_net = config['embedding_net']
         self.dnds = nn.ModuleList([DND() for _ in range(config['n_actions'])])
 
-    def forward(self, state, action):
+    def forward(self, states, actions):
         """
         Forward pass through embedding CNN and DNDs
 
-        The hope is that during optimization a single call to backward allows for
+        During optimization a single call to backward allows for
         backpropagation through the necessary dnd sub-modules
 
         TODO: check that backward in this manner doesn't affect parameters of other dnds not to be updated
-        TODO: this should be able to work with a batch of actions so we can have less noisy
-        gradient updates
         """
-        h = self.embedding_net(state)
-        dnd = self.dnds[action]
-        q = dnd(h)
+        keys = self.embedding_net(states)
+        q = torch.tensor([self.dnds[action.item()](key) for key, action in zip(keys, action)], requires_grad=True) # not taking advantage of batch forward capability of torch
+        # instead group keys by dnd
+        # call forward on each dnd with group of keys
 
         return q
 
-    def lookup(self, state):
+    def lookup(self, obs):
         """
         To be used during environment interaction to get Q-values for a single state
         """
         with torch.no_grad():
-            h = self.embedding_net(state)
-            qs = [dnd.lookup(h) for dnd in self.dnds]
+            key = self.embedding_net(obs)
+            qs = [dnd.lookup(key) for dnd in self.dnds]
 
-            return qs
+            return qs, key
 
 
 if __name__ == "__main__":

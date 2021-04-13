@@ -25,7 +25,7 @@ def run_training(config):
             agent.set_epsilon(epsilon)
 
         action = agent.step(obs)
-        next_obs, reward, done = env.step(action)
+        next_obs, reward, done, info = env.step(action)
         agent.update((obs, action, reward, done))
         obs = next_obs
 
@@ -35,7 +35,7 @@ def run_training(config):
 
             if t % config.eval_frequency == 0:
                 agent.eval()
-                # do the evaluation later #
+                # evaluate agent here #
                 agent.train()
 
 

@@ -38,13 +38,18 @@ class NECAgent:
         self.nec_net.eval()
 
     def new_episode(self):
-        pass
+        # trackers for computing N-step returns and updating replay and dnd memories at the end of episode
+        self.observations, self.keys, self.actions, self.values, self.rewards = [], [], [], [], []
 
     def set_epsilon(self, eps):
         self.train_eps = eps
 
     def step(self, obs):
-        q_values = self.nec_net.lookup(obs)
+        q_values, key = self.nec_net.lookup(obs)
+
+        # update trackers of the key and max-value
+        self.keys.append(key)
+        self.values.append(np.max(q_values))
 
         eps = self.train_eps if self.training else self.eval_eps
 
@@ -52,14 +57,20 @@ class NECAgent:
         if np.random.rand() < eps:
             return np.random.choice(np.arange(self.num_actions))
 
-        return _argmax(q_values) # ensure q_values here is a list or numpy array
+        return _argmax(q_values)
 
     def update(self, transition):
         obs, action, reward, done = transition
 
-        # keep track of things
+        # update trackers
+        self.observations.append(obs)
+        self.actions.append(action)
+        self.rewards.append(reward)
 
         if done:
+            episode_length = len(self.actions)
+
+            # compute N-step returns
             # batch update of replay memory
             # batch update of episodic memories
             pass
@@ -70,7 +81,7 @@ class NECAgent:
         """
         observations, actions, returns = self.replay_buffer.sample(self.batch_size)
         self.optimizer.zero_grad()
-        q_values = self.nec_net(observations)[:, actions] # pick q_values for chosen actions
+        q_values = self.nec_net(observations, actions) # pick q_values for chosen actions
         loss = self.loss_fn(q_values, returns)
         loss.backward()
         self.optimizer.step()

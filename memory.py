@@ -16,7 +16,7 @@ class ReplayBuffer:
         self.actions[self.idx] = action
         self.returns[self.idx] = ret
         self.idx = (self.idx + 1) % self.capacity
-        self.count += 1 # Think of a different way to do this, it will overflow at some point in a long enough training period
+        self.count += 1 # Think of a different way to do this, it may overflow at some point in a long enough training period
 
     def append_batch(self, observations, actions, returns):
         batch_size = len(observations)
