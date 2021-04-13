@@ -12,11 +12,11 @@ def torch_replace_knn(xq, xb, k, metric=faiss.METRIC_L2):
     #TO BE COMPLETED later for fun
     # for now just call .numpy() on torch tensors
 
-def _inverse_distance_kernel(h1, h2, delta = 1e-3):
+def _inverse_distance_kernel(sq_distances, delta = 1e-3):
     """
     Kernel used in Pritzel et. al, 2017
     """
-    return 1 / (torch.dist(h1, h2) + delta)
+    return 1 / (sq_distances + delta)
 
 def _knn_search(queries, data, k):
     """
@@ -59,7 +59,7 @@ class DND(nn.Module):
     """
 
     def __init__(self, config):
-        super(DND, self).__init__()
+        super().__init__()
 
         self.capacity = config['capacity']
         self.num_neighbours = config['neighbours']
@@ -71,7 +71,6 @@ class DND(nn.Module):
 
         self.keys_hash = { tuple(self.keys[0].detach().numpy()): 0 } # one idea is to use actual index as value in this hash
         self.lru_list = np.linspace(1, self.capacity, self.capacity)
-
 
     def lookup(self, key):
         """
@@ -93,7 +92,7 @@ class DND(nn.Module):
             # all neighbour_idxs should be set to recently used than all others
 
             # compute the actual Q
-            w_i = torch.cat([_inverse_distance_kernel(key, h_i) for h_i in self.keys[neighbour_idxs]])
+            w_i = _inverse_distance_kernel(torch.tensor(sq_distances))
             w_i /= torch.sum(w_i)
             v_i = self.values[neighbour_idxs]
 
@@ -112,14 +111,17 @@ class DND(nn.Module):
 
         sq_distances, neighbour_idxs = _knn_search(keys, self.keys, self.num_neighbours)
 
-        # maintain lru_list here
+        # maintain lru_list here: flatten then pick unique neighbour indices
 
-        # compute the actual Q
-        w_i = torch.cat([_inverse_distance_kernel(keys, h_i) for h_i in self.keys[neighbour_idxs]])
-        w_i /= torch.sum(w_i)
-        v_i = self.values[neighbour_idxs]
+        # re-compute distances for backprop
+        neighbours = self.keys[neighbour_idxs.reshape(-1)].view(-1, self.num_neighbours, self.key_size)
+        sq_distances = ((keys.unsqueeze(dim = 1) - neighbours) ** 2).sum(dim = 2)
+        weights = _inverse_distance_kernel(sq_distances)
+        weights /= weights.sum(dim = 1, keepdim = True)
 
-        return torch.sum(w_i * v_i)
+        values = self.values[neighbour_idxs.reshape(-1)].view(-1, self.num_neighbours, 1)
+
+        return torch.sum(weights.unsqueeze(dim = 2) * values, dim = 1)
 
 
     def update_batch(self, keys, values):
