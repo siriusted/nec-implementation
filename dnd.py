@@ -16,7 +16,7 @@ def _inverse_distance_kernel(sq_distances, delta = 1e-3):
     """
     Kernel used in Pritzel et. al, 2017
     """
-    return 1 / (sq_distances + delta)
+    return 1 / (torch.sqrt(sq_distances) + delta)
 
 def _knn_search(queries, data, k):
     """
