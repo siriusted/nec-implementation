@@ -48,7 +48,16 @@ def _combine_by_key(keys, values, op):
                 ks.append(key)
                 vs.append(values[i])
     elif op == 'mean':
-        pass #TODO
+        for i, key in enumerate(keys):
+            if key in key_map:
+                # update average using stored average, running count, and new value
+                idx, n = key_map[key]
+                vs[idx] = (vs[idx] * n + values[i]) / (n + 1)
+                key_map[key][1] += 1
+            else:
+                key_map[key] = [len(ks), 1] # store idx in new arrays and running count
+                ks.append(key)
+                vs.append(values[i])
 
     return np.array(ks), np.array(vs)
 
