@@ -59,7 +59,7 @@ def _combine_by_key(keys, values, op):
                 ks.append(key)
                 vs.append(values[i])
 
-    return np.array(ks), np.array(vs)
+    return ks, vs
 
 class DND(nn.Module):
     """
@@ -75,11 +75,13 @@ class DND(nn.Module):
         self.key_size = config['key_size']
         self.alpha = config['alpha']
 
+        # opposed to paper description, this list is not growing but pre-initialised and gradually replaced
         self.keys = Parameter(torch.ones(self.capacity, self.key_size) * 1e8) # use very large values to allow for low similarity with keys while warming up
         self.values = Parameter(torch.zeros(self.capacity))
 
-        self.keys_hash = { tuple(self.keys[0].detach().numpy()): 0 } # one idea is to use actual index as value in this hash
-        self.lru_list = np.linspace(1, self.capacity, self.capacity)
+        self.keys_hash = {} # one idea is to use actual index as value in this hash
+        self.last_used = np.linspace(self.capacity, 1, self.capacity, dtype=np.uint32) # used to manage lru replacement
+        # initialised in descending order to foster the replacement of earlier indexes before later ones
 
     def lookup(self, key):
         """
@@ -98,7 +100,8 @@ class DND(nn.Module):
             sq_distances, neighbour_idxs = _knn_search(key, self.keys, self.num_neighbours)
 
             # maintain lru here
-            # all neighbour_idxs should be set to recently used than all others
+            self.last_used += 1 # increment time last used for all keys
+            self.last_used[neighbour_idxs.reshape(-1)] = 0 # reset time last used for neighbouring keys
 
             # compute the actual Q
             w_i = _inverse_distance_kernel(torch.tensor(sq_distances))
@@ -120,7 +123,11 @@ class DND(nn.Module):
 
         sq_distances, neighbour_idxs = _knn_search(keys, self.keys, self.num_neighbours)
 
-        # maintain lru_list here: flatten then pick unique neighbour indices
+        neighbour_idxs = neighbour_idxs.reshape(-1) # flattened list view useful below
+
+        # maintain lru here
+        self.last_used += 1
+        self.last_used[neighbour_idxs] = 0
 
         # re-compute distances for backprop
         neighbours = self.keys[neighbour_idxs.reshape(-1)].view(-1, self.num_neighbours, self.key_size)
@@ -138,7 +145,7 @@ class DND(nn.Module):
         Update the DND with keys and values experienced from an episode
         """
         # first handle duplicates inside the batch of data by either taking the max or averaging
-        keys, values = _combine_by_key(keys, values, 'max') # returns keys as a tuple that can be used in keys_hash
+        keys, values = _combine_by_key(keys, values, 'max') # returns keys as a list of tuples that can be used to index self.keys_hash
         match_idxs, match_dnd_idxs, new_idxs = [], [], []
 
         # then group indices of exact matches and new keys
@@ -150,19 +157,32 @@ class DND(nn.Module):
                 new_idxs.append(i)
 
         num_matches, num_new = len(match_idxs), len(new_idxs)
+
+        self.last_used += 1 # maintain time since keys used
+
         with torch.no_grad():
+            # make tensors for fancy indexing and easy interoperability with self.keys and self.values
+            keys, values = torch.tensor(keys), torch.tensor(values)
+
             # update exact matches using dnd learning rate
             if num_matches:
                 self.values[match_dnd_idxs] += self.alpha * (values[match_idxs] - self.values[match_dnd_idxs])
-                # make the associated dnd idxs MRU
+                self.last_used[match_dnd_idxs] = 0
 
+            # replace least recently used keys with new keys
             if num_new:
-                lru_idxs = self.lru_list[: ]
+                lru_idxs = np.argsort(self.last_used)[-num_new:] # get lru indices using the self.last_used
                 self.keys[lru_idxs] = keys[new_idxs]
                 self.values[lru_idxs] = values[new_idxs]
-                # move to MRU position just before matches
+                self.last_used[lru_idxs] = 0
 
-                #update self.keys_hash
+                # update self.keys_hash
+                inv_hash = {v: k for k, v in self.keys_hash.items()}
+
+                for idx in lru_idxs:
+                    if idx in inv_hash:
+                        del self.keys_hash[inv_hash[idx]]
+                    self.keys_hash[tuple(self.keys[idx].detach().numpy())] = idx
 
 
     def update(self):
