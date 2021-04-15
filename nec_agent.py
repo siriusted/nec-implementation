@@ -81,7 +81,7 @@ class NECAgent:
         """
         observations, actions, returns = self.replay_buffer.sample(self.batch_size)
         self.optimizer.zero_grad()
-        q_values = self.nec_net(observations, actions) # pick q_values for chosen actions
+        q_values = self.nec_net(observations)[range(self.batch_size), actions] # pick q_values for chosen actions
         loss = self.loss_fn(q_values, returns)
         loss.backward()
         self.optimizer.step()
