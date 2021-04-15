@@ -130,14 +130,14 @@ class DND(nn.Module):
         self.last_used[neighbour_idxs] = 0
 
         # re-compute distances for backprop
-        neighbours = self.keys[neighbour_idxs.reshape(-1)].view(-1, self.num_neighbours, self.key_size)
+        neighbours = self.keys[neighbour_idxs].view(-1, self.num_neighbours, self.key_size)
         sq_distances = ((keys.unsqueeze(dim = 1) - neighbours) ** 2).sum(dim = 2)
         weights = _inverse_distance_kernel(sq_distances)
         weights /= weights.sum(dim = 1, keepdim = True)
 
-        values = self.values[neighbour_idxs.reshape(-1)].view(-1, self.num_neighbours, 1)
+        values = self.values[neighbour_idxs].view(-1, self.num_neighbours)
 
-        return torch.sum(weights.unsqueeze(dim = 2) * values, dim = 1)
+        return torch.sum(weights * values, dim = 1)
 
 
     def update_batch(self, keys, values):
