@@ -37,6 +37,9 @@ def _combine_by_key(keys, values, op):
     ks, vs = [], []
     key_map = {}
 
+    #TODO: to keep order of recency maybe cycle positions when duplicates
+    # are encountered so the key remains the latest in the array order\
+    # but does it matter !!???
     if op == 'max':
         for i, key in enumerate(keys):
             if key in key_map:
