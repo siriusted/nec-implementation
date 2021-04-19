@@ -49,6 +49,8 @@ def test_combine_by_key():
     assert ks == [(1., 1.), (2., 2.), (3., 3.), (5., 5.)]
     assert vs == [16., 10., 6., 7.]
 
+id_krnl = lambda dist: 1. / (dist + 1e-3)
+
 def test_lookup():
     # test with initial setup
     config = { "capacity": 4, "neighbours": 2, "key_size": 2, "alpha": 0.5 }
@@ -56,9 +58,8 @@ def test_lookup():
 
     key = torch.tensor([1., 2.], dtype = torch.float32, requires_grad = True)
     value = dnd.lookup(key)
+    assert np.array_equal(dnd.last_used, np.array([0, 0, 3, 2]))
     assert value == 0
-
-    id_krnl = lambda dist: 1. / (dist + 1e-3)
 
     # test with exact match existing
     dnd.keys = Parameter(
@@ -77,6 +78,7 @@ def test_lookup():
     value = dnd.lookup(key)
     weights = np.array([id_krnl(0), id_krnl(1.)])
     expected = ((weights / weights.sum()) * [8., 2.]).sum()
+    assert np.array_equal(dnd.last_used, np.array([0, 0, 4, 3]))
     assert np.isclose(value, expected)
 
     # test with no exact match
@@ -90,10 +92,42 @@ def test_lookup():
     value = dnd.lookup(key)
     weights = np.array([id_krnl(1)] * 2)
     expected = ((weights / weights.sum()) * [2., 5.]).sum()
+    assert np.array_equal(dnd.last_used, np.array([1, 0, 5, 0]))
     assert np.isclose(value, expected)
 
 def test_forward():
-    pass
+    config = { "capacity": 4, "neighbours": 2, "key_size": 2, "alpha": 0.5 }
+    dnd = DND(config)
+
+    keys = torch.tensor([
+        [1., 2.],
+        [3., 4.]
+    ], requires_grad = True)
+
+    dnd.keys = Parameter(
+        torch.tensor([
+            [1., 2.],
+            [1., 1.],
+            [2., 1.],
+            [3., 2.],
+        ])
+    )
+
+    dnd.values = Parameter(
+        torch.tensor([8., 2., 3., 5.])
+    )
+
+    values = dnd(keys)
+    weights = np.array([
+        [id_krnl(0), id_krnl(1.)],
+        [id_krnl(2.), id_krnl(np.sqrt(8.))]
+    ])
+    expected = (weights / weights.sum(axis = 1).reshape(2, 1) * np.array([[8., 2.], [5., 8.]])).sum(axis = 1)
+
+    assert values.grad_fn is not None
+    assert np.array_equal(dnd.last_used, np.array([0, 0, 3, 0]))
+    assert np.allclose(values.detach().numpy(), expected)
+
 
 def test_update_batch():
     pass
