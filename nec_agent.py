@@ -22,6 +22,8 @@ class NECAgent:
         self.num_actions = env.action_space.n
         self.replay_buffer = ReplayBuffer(config['replay_size'])
         self.batch_size = config['batch_size']
+        self.discount = config['discount']
+        self.n_step_horizon = config['horizon']
         self.train()
 
         # make sure model is on appropriate device at this point before constructing optimizer
@@ -70,10 +72,24 @@ class NECAgent:
         if done:
             episode_length = len(self.actions)
 
-            # compute N-step returns
+            # compute N-step returns in reverse order
+            returns, n_step_returns = [None] * (episode_length + 1), [None] * episode_length
+            returns[episode_length] = 0
+
+            for t in range(episode_length - 1, -1, -1):
+                returns[t] = self.rewards[t] + self.discount * returns[t + 1]
+                if episode_length - t > self.n_step_horizon:
+                    n_step_returns[t] = returns[t] + self.discount ** self.n_step_horizon * (self.values[t + self.n_step_horizon] - returns[t + self.n_step_horizon])
+                else: # use on-policy monte carlo returns when below horizon
+                    n_step_returns[t] = returns[t]
+
             # batch update of replay memory
+            self.replay_buffer.append_batch(self.observations, self.actions, n_step_returns)
             # batch update of episodic memories
-            pass
+
+            # save/log metrics for plotting or whatever
+
+
 
     def optimize(self):
         """

@@ -5,7 +5,7 @@ from nec_agent import NECAgent
 from embedding_models import DQN
 
 
-#TODO: store metrics somewhere
+#TODO: store metrics somewhere (done in nec agent)
 def run_training(config):
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
