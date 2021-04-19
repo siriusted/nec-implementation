@@ -86,9 +86,9 @@ class DND(nn.Module):
         self.last_used = np.linspace(self.capacity, 1, self.capacity, dtype=np.uint32) # used to manage lru replacement
         # initialised in descending order to foster the replacement of earlier indexes before later ones
 
-    def lookup(self, key):
+    def lookup(self, key) -> float:
         """
-        To be used wkeyen going through DND without plans to keep gradients
+        To be used when going through DND without plans to keep gradients
 
         Params:
             - key: state embedding to be looked up
@@ -100,7 +100,7 @@ class DND(nn.Module):
         4. return desired Q
         """
         with torch.no_grad():
-            sq_distances, neighbour_idxs = _knn_search(key, self.keys, self.num_neighbours)
+            sq_distances, neighbour_idxs = _knn_search(key.unsqueeze(0), self.keys, self.num_neighbours)
 
             # maintain lru here
             self.last_used += 1 # increment time last used for all keys

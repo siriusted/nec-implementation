@@ -9,7 +9,7 @@ class NEC(nn.Module):
         self.embedding_net = config['embedding_net']
         self.dnds = nn.ModuleList([DND(config['dnd_config']) for _ in range(config['n_actions'])])
 
-    def forward(self, states):
+    def forward(self, observations):
         """
         Forward pass through embedding CNN and DNDs
 
@@ -18,7 +18,7 @@ class NEC(nn.Module):
 
         TODO: check that backward in this manner doesn't affect parameters of other dnds not to be updated
         """
-        keys = self.embedding_net(states)
+        keys = self.embedding_net(observations)
         qs = torch.stack([dnd(keys) for dnd in self.dnds]).T # to get q_values in shape [batch_size x actions]
 
         return qs
