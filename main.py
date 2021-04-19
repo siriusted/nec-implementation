@@ -26,7 +26,7 @@ def run_training(config):
 
         action = agent.step(obs)
         next_obs, reward, done, info = env.step(action)
-        agent.update((obs, action, reward, done))
+        agent.update((reward, done))
         obs = next_obs
 
         if t >= config.start_learning_step:

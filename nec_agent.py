@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from torch.optim import RMSprop
 from torch.nn import MSELoss
 from memory import ReplayBuffer
@@ -49,24 +50,28 @@ class NECAgent:
     def step(self, obs):
         q_values, key = self.nec_net.lookup(obs)
 
-        # update trackers of the key and max-value
-        self.keys.append(key)
-        self.values.append(np.max(q_values))
-
         eps = self.train_eps if self.training else self.eval_eps
 
         # do epsilon-greedy crap
-        if np.random.rand() < eps:
-            return np.random.choice(np.arange(self.num_actions))
-
-        return _argmax(q_values)
-
-    def update(self, transition):
-        obs, action, reward, done = transition
+        action = np.random.choice(np.arange(self.num_actions)) if np.random.rand() < eps else _argmax(q_values)
 
         # update trackers
-        self.observations.append(obs)
         self.actions.append(action)
+        self.observations.append(obs)
+        self.keys.append(key)
+        self.values.append(np.max(q_values))
+
+        return action
+
+
+    def update(self, consequence):
+        """
+        Called from main training loop to inform agent of consequence of last action including
+        reward and if the episode terminated
+        """
+        reward, done = consequence
+
+        # update reward tracker
         self.rewards.append(reward)
 
         if done:
@@ -87,7 +92,7 @@ class NECAgent:
             self.replay_buffer.append_batch(self.observations, self.actions, n_step_returns)
 
             # batch update of episodic memories
-            self.keys, n_step_returns = np.array(self.keys), np.array(n_step_returns, dtype = np.float32) # for fancy indexing
+            self.keys, n_step_returns = torch.stack(self.keys), np.array(n_step_returns, dtype = np.float32) # for fancy indexing
             unique_actions = np.unique(self.actions)
             for action in unique_actions:
                 action_idxs = np.nonzero(self.actions == action)[0]
