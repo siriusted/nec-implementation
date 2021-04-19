@@ -85,7 +85,13 @@ class NECAgent:
 
             # batch update of replay memory
             self.replay_buffer.append_batch(self.observations, self.actions, n_step_returns)
+
             # batch update of episodic memories
+            self.keys, n_step_returns = np.array(self.keys), np.array(n_step_returns, dtype = np.float32) # for fancy indexing
+            unique_actions = np.unique(self.actions)
+            for action in unique_actions:
+                action_idxs = np.nonzero(self.actions == action)[0]
+                self.nec_net.update_batch(action, self.keys[action_idxs], n_step_returns[action_idxs])
 
             # save/log metrics for plotting or whatever
 

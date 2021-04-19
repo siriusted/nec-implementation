@@ -33,6 +33,12 @@ class NEC(nn.Module):
 
             return qs, key
 
+    def update_memory(self, action, keys, values):
+        """
+        Used to batch update an action's DND at the end of an episode
+        """
+        self.dnds[action].update_batch(keys, values)
+
 
 if __name__ == "__main__":
     embedding_net = nn.Sequential(nn.Linear(5, 5), nn.Linear(5, 3))
