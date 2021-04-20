@@ -2,10 +2,11 @@ import numpy as np
 import gym
 import torch
 from tqdm import tqdm
+from logging import ERROR
 from nec_agent import NECAgent
 from embedding_models import DQN, MLP
 
-
+gym.logger.set_level(ERROR)  # Ignore warnings from Gym logger
 #TODO: store metrics somewhere (done in nec agent)
 def run_training(config):
     np.random.seed(config["seed"])
@@ -25,7 +26,8 @@ def run_training(config):
             epsilon -= (config["initial_epsilon"] - config["final_epsilon"]) / (config["epsilon_anneal_end"] - config["epsilon_anneal_start"])
             agent.set_epsilon(epsilon)
 
-        env.render(mode='rgb-array')
+        # env.render(mode='rgb-array')
+        obs = torch.from_numpy(np.float32(obs))
         action = agent.step(obs)
         next_obs, reward, done, info = env.step(action)
         agent.update((reward, done))
@@ -49,7 +51,7 @@ if __name__ == "__main__":
         "env": env,
         "seed": 245,
         "max_steps": 1000000,
-        "intial_epsilon": 1,
+        "initial_epsilon": 1,
         "final_epsilon": 0.001,
         "epsilon_anneal_start": 1,
         "epsilon_anneal_end": 1000,
@@ -62,6 +64,7 @@ if __name__ == "__main__":
         "train_eps": 1, # initializing agent to be fully exploratory
         "eval_eps": 0,
         "num_actions": env.action_space.n,
+        "observation_shape": env.observation_space.shape[0],
         "replay_buffer_size": 100000,
         "batch_size": 32,
         "discount": 0.99,

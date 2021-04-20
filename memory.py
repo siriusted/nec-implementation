@@ -3,10 +3,10 @@ import numpy as np
 
 #TODO: Change to use a namedtuple
 class ReplayBuffer:
-    def __init__(self, capacity = 100000):
+    def __init__(self, observation_shape, capacity = 100000):
         self.capacity = capacity
-        self.actions = np.empty((capacity, ), dtype = np.uint8) # assuming not more than 255 actions
-        self.observations = np.empty((capacity, ), dtype = np.float32)
+        self.actions = np.empty((capacity, ), dtype = np.int64)
+        self.observations = np.empty((capacity, observation_shape), dtype = np.float32)
         self.returns = np.empty((capacity, ), dtype = np.float32)
         self.idx = 0
         self.effective_size = 0
@@ -29,7 +29,7 @@ class ReplayBuffer:
 
     def sample(self, n = 1):
         idxs = np.random.randint(0, self.effective_size, size = n)
-        return torch.from_numpy(self.observations[idxs]), torch.from_numpy(self.actions[idxs]), torch.from_numpy(self.returns[idxs])
+        return torch.from_numpy(self.observations[idxs]), self.actions[idxs], torch.from_numpy(self.returns[idxs])
 
     def size(self):
         """

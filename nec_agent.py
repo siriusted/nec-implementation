@@ -10,7 +10,7 @@ def _argmax(values):
     """
     return index with max value with random tie-breaking
     """
-    idxs = np.non_zero(values == np.max(values))[0]
+    idxs = np.nonzero(values == np.max(values))[0]
     return np.random.choice(idxs)
 
 class NECAgent:
@@ -23,7 +23,7 @@ class NECAgent:
         self.train_eps = config['train_eps']
         self.eval_eps = config['eval_eps']
         self.num_actions = config['num_actions']
-        self.replay_buffer = ReplayBuffer(config['replay_buffer_size'])
+        self.replay_buffer = ReplayBuffer(config['observation_shape'], config['replay_buffer_size'])
         self.batch_size = config['batch_size']
         self.discount = config['discount']
         self.n_step_horizon = config['horizon']
@@ -76,6 +76,8 @@ class NECAgent:
         """
         reward, done = consequence
 
+        reward = reward if not done else -reward # for cartpole
+
         # update reward tracker
         self.rewards.append(reward)
 
@@ -93,15 +95,16 @@ class NECAgent:
                 else: # use on-policy monte carlo returns when below horizon
                     n_step_returns[t] = returns[t]
 
+            self.keys, n_step_returns = torch.stack(self.keys), np.array(n_step_returns, dtype = np.float32) # for fancy indexing
+
             # batch update of replay memory
-            self.replay_buffer.append_batch(self.observations, self.actions, n_step_returns)
+            self.replay_buffer.append_batch(np.stack(self.observations), np.asarray(self.actions, dtype = np.uint8), n_step_returns)
 
             # batch update of episodic memories
-            self.keys, n_step_returns = torch.stack(self.keys), np.array(n_step_returns, dtype = np.float32) # for fancy indexing
             unique_actions = np.unique(self.actions)
             for action in unique_actions:
                 action_idxs = np.nonzero(self.actions == action)[0]
-                self.nec_net.update_batch(action, self.keys[action_idxs], n_step_returns[action_idxs])
+                self.nec_net.update_memory(action, self.keys[action_idxs], n_step_returns[action_idxs])
 
             # save/log metrics for plotting or whatever
             self.logger.add_score(sum(self.rewards), self.episode)

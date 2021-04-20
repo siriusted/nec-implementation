@@ -61,7 +61,7 @@ class ScoreLogger:
             data = list(reader)
             for i in range(0, len(data)):
                 x.append(int(i))
-                y.append(int(data[i][0]))
+                y.append(float(data[i][0]))
 
         plt.subplots()
         plt.plot(x, y, label="score per episode")
