@@ -7,7 +7,7 @@ class NEC(nn.Module):
         super().__init__()
 
         self.embedding_net = config['embedding_net']
-        self.dnds = nn.ModuleList([DND(config) for _ in range(config.num_actions)])
+        self.dnds = nn.ModuleList([DND(config) for _ in range(config['num_actions'])])
 
     def forward(self, observations):
         """

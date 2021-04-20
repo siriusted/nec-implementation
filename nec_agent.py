@@ -22,13 +22,13 @@ class NECAgent:
         self.nec_net = NEC(config)
         self.train_eps = config['train_eps']
         self.eval_eps = config['eval_eps']
-        self.num_actions = config.num_actions
+        self.num_actions = config['num_actions']
         self.replay_buffer = ReplayBuffer(config['replay_buffer_size'])
         self.batch_size = config['batch_size']
         self.discount = config['discount']
         self.n_step_horizon = config['horizon']
         self.episode = 0
-        self.logger = ScoreLogger(config.env_name, config.exp_name)
+        self.logger = ScoreLogger(config['env_name'], config['exp_name'])
         self.train()
 
         # make sure model is on appropriate device at this point before constructing optimizer

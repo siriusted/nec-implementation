@@ -8,34 +8,34 @@ from embedding_models import DQN, MLP
 
 #TODO: store metrics somewhere (done in nec agent)
 def run_training(config):
-    np.random.seed(config.seed)
-    torch.manual_seed(config.seed) #torch.manual_seed(np.random.randint(1, 10000))
-    env = config.env
+    np.random.seed(config["seed"])
+    torch.manual_seed(config["seed"]) #torch.manual_seed(np.random.randint(1, 10000))
+    env = config["env"]
 
     agent = NECAgent(config)
 
     done = True
     epsilon = 1
-    for t in tqdm(range(1, config.max_steps + 1)):
+    for t in tqdm(range(1, config["max_steps"] + 1)):
         if done:
             obs, done = env.reset(), False
             agent.new_episode()
 
-        if config.epsilon_anneal_start < t <= config.epsilon_anneal_end:
-            epsilon -= (config.initial_epsilon - config.final_epsilon) / (config.epsilon_anneal_end - config.epsilon_anneal_start)
+        if config["epsilon_anneal_start"] < t <= config["epsilon_anneal_end"]:
+            epsilon -= (config["initial_epsilon"] - config["final_epsilon"]) / (config["epsilon_anneal_end"] - config["epsilon_anneal_start"])
             agent.set_epsilon(epsilon)
 
-        # env.render(mode='rgb-array')
+        env.render(mode='rgb-array')
         action = agent.step(obs)
         next_obs, reward, done, info = env.step(action)
         agent.update((reward, done))
         obs = next_obs
 
-        if t >= config.start_learning_step:
-            if t % config.replay_frequency == 0:
+        if t >= config["start_learning_step"]:
+            if t % config["replay_frequency"] == 0:
                 agent.optimize()
 
-            if t % config.eval_frequency == 0:
+            if t % config["eval_frequency"] == 0:
                 agent.eval()
                 # evaluate agent here #
                 agent.train()
@@ -66,6 +66,7 @@ if __name__ == "__main__":
         "batch_size": 32,
         "discount": 0.99,
         "horizon": 100,
+        "learning_rate": 5e-5,
         ###### NEC CONFIG #######################
         "embedding_net": MLP(8),
         ###### DND CONFIG #######################
@@ -75,6 +76,9 @@ if __name__ == "__main__":
         "alpha": 0.1
     }
 
-    run_training(config)
+    # print(config.seed)
+    print(config["seed"])
+
+    # run_training(config)
 
     #TODO: run an experiment with pong and plot the data
