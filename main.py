@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 import torch
-import tqdm
+from tqdm import tqdm
 from nec_agent import NECAgent
 from embedding_models import DQN, MLP
 
@@ -76,9 +76,8 @@ if __name__ == "__main__":
         "alpha": 0.1
     }
 
-    # print(config.seed)
-    print(config["seed"])
 
-    # run_training(config)
+
+    run_training(config)
 
     #TODO: run an experiment with pong and plot the data
