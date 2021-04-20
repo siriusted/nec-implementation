@@ -4,6 +4,7 @@ from torch.optim import RMSprop
 from torch.nn import MSELoss
 from memory import ReplayBuffer
 from nec import NEC
+from logger import ScoreLogger
 
 def _argmax(values):
     """
@@ -26,6 +27,8 @@ class NECAgent:
         self.batch_size = config['batch_size']
         self.discount = config['discount']
         self.n_step_horizon = config['horizon']
+        self.episode = 0
+        self.logger = ScoreLogger(config.env_name, config.exp_name)
         self.train()
 
         # make sure model is on appropriate device at this point before constructing optimizer
@@ -44,6 +47,7 @@ class NECAgent:
     def new_episode(self):
         # trackers for computing N-step returns and updating replay and dnd memories at the end of episode
         self.observations, self.keys, self.actions, self.values, self.rewards = [], [], [], [], []
+        self.episode += 1
 
     def set_epsilon(self, eps):
         self.train_eps = eps
@@ -100,7 +104,7 @@ class NECAgent:
                 self.nec_net.update_batch(action, self.keys[action_idxs], n_step_returns[action_idxs])
 
             # save/log metrics for plotting or whatever
-
+            self.logger.add_score(sum(self.rewards), self.episode)
 
 
     def optimize(self):

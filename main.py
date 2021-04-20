@@ -47,7 +47,6 @@ if __name__ == "__main__":
 
     config = {
         "env": env,
-        "env_name": env_name,
         "seed": 245,
         "max_steps": 1000000,
         "intial_epsilon": 1,
@@ -58,6 +57,8 @@ if __name__ == "__main__":
         "replay_frequency": 16,
         "eval_frequency": 1000000, # no eval for now
         ###### NEC AGENT CONFIG #################
+        "env_name": env_name,
+        "exp_name": "key_8",
         "train_eps": 1, # initializing agent to be fully exploratory
         "eval_eps": 0,
         "num_actions": env.action_space.n,
