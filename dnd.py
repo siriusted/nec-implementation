@@ -151,6 +151,8 @@ class DND(nn.Module):
         keys, values = _combine_by_key(keys, values, 'max') # returns keys as a list of tuples that can be used to index self.keys_hash
         match_idxs, match_dnd_idxs, new_idxs = [], [], []
 
+        # probably limit to make sure keys and values are not larger than capacity
+
         # then group indices of exact matches and new keys
         for i, key in enumerate(keys):
             if key in self.keys_hash:

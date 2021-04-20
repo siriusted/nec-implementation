@@ -50,10 +50,10 @@ def test_combine_by_key():
     assert vs == [16., 10., 6., 7.]
 
 id_krnl = lambda dist: 1. / (dist + 1e-3)
+config = { "capacity": 4, "neighbours": 2, "key_size": 2, "alpha": 0.5 }
 
 def test_lookup():
     # test with initial setup
-    config = { "capacity": 4, "neighbours": 2, "key_size": 2, "alpha": 0.5 }
     dnd = DND(config)
 
     key = torch.tensor([1., 2.], dtype = torch.float32, requires_grad = True)
@@ -96,7 +96,6 @@ def test_lookup():
     assert np.isclose(value, expected)
 
 def test_forward():
-    config = { "capacity": 4, "neighbours": 2, "key_size": 2, "alpha": 0.5 }
     dnd = DND(config)
 
     keys = torch.tensor([
@@ -130,4 +129,45 @@ def test_forward():
 
 
 def test_update_batch():
-    pass
+    # test initial update
+    dnd = DND(config)
+
+    keys = torch.stack([
+        torch.tensor([1., 1.]),
+        torch.tensor([2., 2.]),
+    ])
+
+    values = np.array([1., 2.], dtype = np.float32)
+
+    # reset last_used for easier testing
+    dnd.last_used = np.zeros(dnd.capacity, dtype = np.uint32)
+    dnd.update_batch(keys, values)
+    expected_keys_hash = {
+        (1., 1.): 2,
+        (2., 2.): 3
+    }
+
+    assert np.array_equal(dnd.last_used, np.array([1, 1, 0, 0]))
+    assert dnd.keys_hash == expected_keys_hash
+
+
+    # test update with mix of existing keys and new keys
+    keys = torch.stack([
+        torch.tensor([1., 1.]),
+        torch.tensor([2., 2.]),
+        torch.tensor([3., 2.]),
+    ])
+
+    values = np.array([3., 8., 1.], dtype = np.float32)
+
+    dnd.update_batch(keys, values)
+    expected_keys_hash = {
+        (3., 2.): 1,
+        (1., 1.): 2,
+        (2., 2.): 3,
+    }
+    expected_values = np.array([0., 1., 2., 5.], dtype = np.float32)
+
+    assert np.array_equal(dnd.last_used, np.array([2, 0, 0, 0]))
+    assert dnd.keys_hash == expected_keys_hash
+    assert np.allclose(dnd.values.detach().numpy(),  expected_values)
