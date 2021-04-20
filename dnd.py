@@ -73,8 +73,8 @@ class DND(nn.Module):
     def __init__(self, config):
         super().__init__()
 
-        self.capacity = config['capacity']
-        self.num_neighbours = config['neighbours']
+        self.capacity = config['dnd_capacity']
+        self.num_neighbours = config['num_neighbours']
         self.key_size = config['key_size']
         self.alpha = config['alpha']
 

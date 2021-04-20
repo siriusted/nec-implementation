@@ -30,6 +30,11 @@ class DQN(nn.Module):
 
         return output
 
+# simple MLP for Cartpole
+MLP = lambda out_size: nn.Sequential(
+    nn.Linear(4, 24),
+    nn.Linear(24, out_size),
+)
 
 if __name__ == "__main__":
     dqn = DQN_EC(4)

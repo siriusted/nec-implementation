@@ -3,6 +3,7 @@ import torch
 from torch.optim import RMSprop
 from torch.nn import MSELoss
 from memory import ReplayBuffer
+from nec import NEC
 
 def _argmax(values):
     """
@@ -16,12 +17,12 @@ class NECAgent:
     NEC agent
     """
 
-    def __init__(self, env, config):
-        self.nec_net = config['NEC']
-        self.train_eps = 1 # initializing agent to be fully exploratory
+    def __init__(self, config):
+        self.nec_net = NEC(config)
+        self.train_eps = config['train_eps']
         self.eval_eps = config['eval_eps']
-        self.num_actions = env.action_space.n
-        self.replay_buffer = ReplayBuffer(config['replay_size'])
+        self.num_actions = config.num_actions
+        self.replay_buffer = ReplayBuffer(config['replay_buffer_size'])
         self.batch_size = config['batch_size']
         self.discount = config['discount']
         self.n_step_horizon = config['horizon']
@@ -106,6 +107,9 @@ class NECAgent:
         """
         Here, we sample from the replay buffer and train the NEC model end-to-end with backprop
         """
+        if self.replay_buffer.size() < self.batch_size:
+            return
+
         observations, actions, returns = self.replay_buffer.sample(self.batch_size)
         self.optimizer.zero_grad()
         q_values = self.nec_net(observations)[range(self.batch_size), actions] # pick q_values for chosen actions
