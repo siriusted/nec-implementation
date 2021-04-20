@@ -9,14 +9,14 @@ class ReplayBuffer:
         self.observations = np.empty((capacity, ), dtype = np.float32)
         self.returns = np.empty((capacity, ), dtype = np.float32)
         self.idx = 0
-        self.count = 0
+        self.effective_size = 0
 
     def append(self, observation, action, ret):
         self.observations[self.idx] = observation
         self.actions[self.idx] = action
         self.returns[self.idx] = ret
         self.idx = (self.idx + 1) % self.capacity
-        self.count += 1 # Think of a different way to do this, it may overflow at some point in a long enough training period
+        self.effective_size = min(self.effective_size + 1, self.capacity)
 
     def append_batch(self, observations, actions, returns):
         batch_size = len(observations)
@@ -25,12 +25,17 @@ class ReplayBuffer:
         self.actions[idxs] = actions
         self.returns[idxs] = returns
         self.idx = (self.idx + batch_size) % self.capacity
-        self.count += batch_size
+        self.effective_size = min(self.effective_size + batch_size, self.capacity)
 
     def sample(self, n = 1):
-        idxs = np.random.randint(0, self.capacity if self.count >= self.capacity else self.idx, size = n)
+        idxs = np.random.randint(0, self.effective_size, size = n)
         return torch.from_numpy(self.observations[idxs]), torch.from_numpy(self.actions[idxs]), torch.from_numpy(self.returns[idxs])
 
+    def size(self):
+        """
+        returns effective size of the replay buffer
+        """
+        return self.effective_size
 if __name__ == "__main__":
     #TODO: write unit tests
     pass
