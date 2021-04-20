@@ -50,7 +50,7 @@ def test_combine_by_key():
     assert vs == [16., 10., 6., 7.]
 
 id_krnl = lambda dist: 1. / (dist + 1e-3)
-config = { "capacity": 4, "neighbours": 2, "key_size": 2, "alpha": 0.5 }
+config = { "dnd_capacity": 4, "num_neighbours": 2, "key_size": 2, "alpha": 0.5 }
 
 def test_lookup():
     # test with initial setup
