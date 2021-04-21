@@ -64,10 +64,11 @@ class NECAgent:
         action = np.random.choice(np.arange(self.num_actions)) if np.random.rand() < eps else _argmax(q_values)
 
         # update trackers
-        self.actions.append(action)
-        self.observations.append(obs)
-        self.keys.append(key)
-        self.values.append(np.max(q_values))
+        if self.training:
+            self.actions.append(action)
+            self.observations.append(obs)
+            self.keys.append(key)
+            self.values.append(np.max(q_values))
 
         return action
 

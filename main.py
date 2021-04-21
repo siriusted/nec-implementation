@@ -5,8 +5,38 @@ from tqdm import tqdm
 from logging import ERROR
 from nec_agent import NECAgent
 from embedding_models import DQN, MLP
+import plotly.express as px
 
 gym.logger.set_level(ERROR)  # Ignore warnings from Gym logger
+
+def run_evaluation(config, path, episodes=50):
+    env = config["env"]
+    agent = NECAgent(config)
+    agent.nec_net.load_state_dict(torch.load(path))
+    agent.eval()
+
+    rewards = []
+
+    for ep in range(1, episodes + 1):
+        obs, reward_sum = env.reset(), 0
+
+        while True:
+            env.render(mode='rgb-array')
+            obs = torch.from_numpy(np.float32(obs))
+            action = agent.step(obs)
+            next_obs, reward, done, info = env.step(action)
+            reward_sum += reward
+            obs = next_obs
+
+            if done:
+                if config['env_name'].startswith('CartPole'):
+                    reward_sum -= reward
+
+                rewards.append(reward_sum)
+                break
+
+    px.line(x = range(1, episodes + 1), y = rewards)
+
 
 def run_training(config):
     np.random.seed(config["seed"])
@@ -83,5 +113,6 @@ if __name__ == "__main__":
 
 
     run_training(config)
+    # run_evaluation(config, '')
 
     #TODO: run an experiment with pong and plot the data
