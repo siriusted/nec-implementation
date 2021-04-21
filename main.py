@@ -5,6 +5,7 @@ from tqdm import tqdm
 from logging import ERROR
 from nec_agent import NECAgent
 from embedding_models import DQN, MLP
+from itertools import product
 
 gym.logger.set_level(ERROR)  # Ignore warnings from Gym logger
 
@@ -46,42 +47,55 @@ def run_training(config):
 if __name__ == "__main__":
     env_name = "CartPole-v1"
     env = gym.make(env_name)
-    exp_name = "key8_eps0.0005_repl4_lr0.001_alph0.5"
 
-    config = {
-        "env": env,
-        "seed": 245,
-        "max_steps": 100000,
-        "initial_epsilon": 1,
-        "final_epsilon": 0.0005,
-        "epsilon_anneal_start": 1,
-        "epsilon_anneal_end": 500,
-        "start_learning_step": 1,
-        "replay_frequency": 4,
-        "eval_frequency": 1000000, # no eval for now
-        ###### NEC AGENT CONFIG #################
-        "env_name": env_name,
-        "exp_name": exp_name,
-        "train_eps": 1, # initializing agent to be fully exploratory
-        "eval_eps": 0,
-        "num_actions": env.action_space.n,
-        "observation_shape": env.observation_space.shape[0],
-        "replay_buffer_size": 100000,
-        "batch_size": 32,
-        "discount": 0.99,
-        "horizon": 100,
-        "learning_rate": 0.001,
-        ###### NEC CONFIG #######################
-        "embedding_net": MLP(8),
-        ###### DND CONFIG #######################
-        "dnd_capacity": 500000,
-        "num_neighbours": 50,
-        "key_size": 8,
-        "alpha": 0.5
-    }
+    lrs = [5e-5, 0.001]
+    anneal_ends = [500, 1000]
+    start_learnings = [1, 50]
+    epsilons = [0.0005, 0.001]
+    replays = [4, 16]
+    alphas = [0.5, 0.1]
+    # horizons = [100, 50, 10]
+
+    for combo in product(lrs, anneal_ends, start_learnings, epsilons, replays, alphas):
+        lr, anneal_end, start_learn, eps, replay, alpha = combo
+        print(f"Starting experiment combo: {combo}..")
+
+        exp_name = f'eps{eps}_repl{replay}_lr{lr}_alph{alpha}_start{start_learn}_annend{anneal_end}'
+
+        config = {
+            "env": env,
+            "seed": 245,
+            "max_steps": 100000,
+            "initial_epsilon": 1,
+            "final_epsilon": eps,
+            "epsilon_anneal_start": 1,
+            "epsilon_anneal_end": anneal_end,
+            "start_learning_step": start_learn,
+            "replay_frequency": replay,
+            "eval_frequency": 100000, # no eval for now
+            ###### NEC AGENT CONFIG #################
+            "env_name": env_name,
+            "exp_name": exp_name,
+            "train_eps": 1, # initializing agent to be fully exploratory
+            "eval_eps": 0,
+            "num_actions": env.action_space.n,
+            "observation_shape": env.observation_space.shape[0],
+            "replay_buffer_size": 100000,
+            "batch_size": 32,
+            "discount": 0.99,
+            "horizon": 100,
+            "learning_rate": lr,
+            ###### NEC CONFIG #######################
+            "embedding_net": MLP(8),
+            ###### DND CONFIG #######################
+            "dnd_capacity": 50000,
+            "num_neighbours": 50,
+            "key_size": 8,
+            "alpha": alpha
+        }
 
 
 
-    run_training(config)
+        run_training(config)
 
     #TODO: run an experiment with pong and plot the data
