@@ -31,6 +31,7 @@ class NECAgent:
         self.episode = 0
         self.logger = ScoreLogger(config['env_name'], config['exp_name'])
         self.env_name = config['env_name']
+        self.exp_name = config['exp_name']
         self.train()
 
         # make sure model is on appropriate device at this point before constructing optimizer
@@ -112,8 +113,8 @@ class NECAgent:
             # save/log metrics for plotting or whatever
             solved = self.logger.add_score(sum(self.rewards), self.episode)
             if solved:
-                for i, dnd in enumerate(self.nec_net.dnds):
-                    torch.save(dnd.state_dict(), f'{os.getcwd()}/dnd_{i}.txt')
+                path = f'{os.getcwd()}/nec_{self.exp_name}.pth'
+                torch.save(self.nec_net.state_dict(), path)
                 exit()
 
     def optimize(self):
