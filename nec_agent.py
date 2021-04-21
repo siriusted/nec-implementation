@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import torch
 from torch.optim import RMSprop
 from torch.nn import MSELoss
@@ -29,6 +30,7 @@ class NECAgent:
         self.n_step_horizon = config['horizon']
         self.episode = 0
         self.logger = ScoreLogger(config['env_name'], config['exp_name'])
+        self.env_name = config['env_name']
         self.train()
 
         # make sure model is on appropriate device at this point before constructing optimizer
@@ -76,7 +78,8 @@ class NECAgent:
         """
         reward, done = consequence
 
-        reward = reward if not done else -reward # for cartpole
+        if self.env_name.startswith("CartPole"):
+            reward = reward if not done else -reward
 
         # update reward tracker
         self.rewards.append(reward)
@@ -107,8 +110,11 @@ class NECAgent:
                 self.nec_net.update_memory(action, self.keys[action_idxs], n_step_returns[action_idxs])
 
             # save/log metrics for plotting or whatever
-            self.logger.add_score(sum(self.rewards), self.episode)
-
+            solved = self.logger.add_score(sum(self.rewards), self.episode)
+            if solved:
+                for i, dnd in enumerate(self.nec_net.dnds):
+                    torch.save(dnd.state_dict(), f'{os.getcwd()}/dnd_{i}.txt')
+                exit()
 
     def optimize(self):
         """

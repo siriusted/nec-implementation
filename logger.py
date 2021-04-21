@@ -38,7 +38,7 @@ class ScoreLogger:
                        show_legend=True)
         self.scores.append(score)
         mean_score = mean(self.scores)
-        print(f"Scores: (min: {str(min(self.scores))}, avg: {str(mean_score)}, max:  {str(max(self.scores))})\n")
+        print(f"Scores: (score: {str(score)} min: {str(min(self.scores))}, avg: {str(mean_score)}, max:  {str(max(self.scores))})\n")
         if mean_score >= AVERAGE_SCORE_TO_SOLVE and len(self.scores) >= CONSECUTIVE_RUNS_TO_SOLVE:
             solve_score = run-CONSECUTIVE_RUNS_TO_SOLVE
             print(f"Solved in {str(solve_score)} episodes, {str(run)} total episodes.")
@@ -51,7 +51,9 @@ class ScoreLogger:
                            show_goal=False,
                            show_trend=False,
                            show_legend=False)
-            exit()
+            return True
+
+        return False
 
     def _save_png(self, input_path, output_path, x_label, y_label, average_of_n_last, show_goal, show_trend, show_legend):
         x = []
