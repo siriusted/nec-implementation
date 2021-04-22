@@ -133,3 +133,5 @@ dmypy.json
 
 # logger results
 results/solved_*
+
+*.DS_Store
