@@ -1,13 +1,15 @@
 import numpy as np
 import gym
 import torch
+from torch import nn
 from tqdm import tqdm
 from logging import ERROR
 from nec_agent import NECAgent
 from embedding_models import DQN, MLP
-import plotly.express as px
+import matplotlib.pyplot as plt
 
 gym.logger.set_level(ERROR)  # Ignore warnings from Gym logger
+# torch.autograd.set_detect_anomaly(True) # detect anomaly
 
 def run_evaluation(config, path, episodes=50):
     env = config["env"]
@@ -35,12 +37,11 @@ def run_evaluation(config, path, episodes=50):
                 rewards.append(reward_sum)
                 break
 
-    px.line(x = range(1, episodes + 1), y = rewards)
+    plt.plot(range(1, episodes + 1), rewards)
+    plt.savefig(f"eval_{config['exp_name']}.png")
 
 
-def run_training(config):
-    np.random.seed(config["seed"])
-    torch.manual_seed(config["seed"]) #torch.manual_seed(np.random.randint(1, 10000))
+def run_training(config, return_agent=False):
     env = config["env"]
 
     agent = NECAgent(config)
@@ -57,10 +58,15 @@ def run_training(config):
             agent.set_epsilon(epsilon)
 
         # env.render(mode='rgb-array')
-        obs = torch.from_numpy(np.float32(obs))
+        if type(obs) is np.ndarray:
+            obs = torch.from_numpy(np.float32(obs))
         action = agent.step(obs)
         next_obs, reward, done, info = env.step(action)
-        agent.update((reward, done))
+        solved = agent.update((reward, done))
+
+        if solved:
+            return
+
         obs = next_obs
 
         if t >= config["start_learning_step"]:
@@ -72,23 +78,32 @@ def run_training(config):
                 # evaluate agent here #
                 agent.train()
 
+    if return_agent:
+        return agent
 
 if __name__ == "__main__":
-    env_name = "CartPole-v1"
+    env_name = "Acrobot-v1"#"MountainCar-v0" #"CartPole-v1"
     env = gym.make(env_name)
-    exp_name = "key8_eps0.0005_repl4_lr0.001_alph0.5"
+    key_size = 4
+    horizon = 50
+    in_size = env.observation_space.shape[0]
+    hidden = 16
+    seed = 245
+    exp_name = f"{env_name}_mlp{in_size}_{hidden}_{key_size}_capacity_10000"
+
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
     config = {
         "env": env,
-        "seed": 245,
-        "max_steps": 100000,
+        "max_steps": 100_000,
         "initial_epsilon": 1,
-        "final_epsilon": 0.0005,
+        "final_epsilon": 0.001,
         "epsilon_anneal_start": 1,
-        "epsilon_anneal_end": 500,
+        "epsilon_anneal_end": 2000,
         "start_learning_step": 1,
         "replay_frequency": 4,
-        "eval_frequency": 1000000, # no eval for now
+        "eval_frequency": 100_000, # no eval for now
         ###### NEC AGENT CONFIG #################
         "env_name": env_name,
         "exp_name": exp_name,
@@ -98,21 +113,21 @@ if __name__ == "__main__":
         "observation_shape": env.observation_space.shape[0],
         "replay_buffer_size": 100000,
         "batch_size": 32,
-        "discount": 0.99,
-        "horizon": 100,
-        "learning_rate": 0.001,
+        "discount": 1,
+        "horizon": horizon,
+        "learning_rate": 0.01,
         ###### NEC CONFIG #######################
-        "embedding_net": MLP(8),
+        "embedding_net": MLP(in_size, hidden, key_size),
         ###### DND CONFIG #######################
-        "dnd_capacity": 500000,
+        "dnd_capacity": 10000,
         "num_neighbours": 50,
-        "key_size": 8,
-        "alpha": 0.5
+        "key_size": key_size,
+        "alpha": 0.9,
     }
 
 
 
     run_training(config)
-    # run_evaluation(config, '')
+    # run_evaluation(config, f'cartpole/trained_agents/nec_{exp_name}.pth')
 
     #TODO: run an experiment with pong and plot the data
