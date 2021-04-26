@@ -114,9 +114,11 @@ class NECAgent:
             # save/log metrics for plotting or whatever
             solved = self.logger.add_score(sum(self.rewards), self.episode)
             if solved:
-                path = f'{os.getcwd()}/nec_{self.exp_name}.pth'
+                path = f'{os.getcwd()}/cartpole/trained_agents/nec_{self.exp_name}.pth'
                 torch.save(self.nec_net.state_dict(), path)
-                exit()
+                return True
+
+        return False
 
     def optimize(self):
         """
@@ -131,3 +133,16 @@ class NECAgent:
         loss = self.loss_fn(q_values, returns)
         loss.backward()
         self.optimizer.step()
+
+    def get_q_values(self, observations, actions):
+        """
+        Computes q_values for observation, action pairs passed in.
+
+        Used for testing
+        """
+        with torch.no_grad():
+            self.eval()
+            observations = torch.from_numpy(observations)
+            q_values = self.nec_net(observations)[range(len(actions)), actions]
+
+            return q_values.numpy()
