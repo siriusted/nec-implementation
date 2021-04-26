@@ -16,7 +16,8 @@ def _inverse_distance_kernel(sq_distances, delta = 1e-3):
     """
     Kernel used in Pritzel et. al, 2017
     """
-    return 1 / (torch.sqrt(sq_distances) + delta)
+    # https://discuss.pytorch.org/t/runtimeerror-function-sqrtbackward-returned-nan-values-in-its-0th-output/48702
+    return 1 / (torch.sqrt(sq_distances + 1e-8) + delta)
 
 def _knn_search(queries, data, k):
     """
@@ -79,7 +80,7 @@ class DND(nn.Module):
         self.alpha = config['alpha']
 
         # opposed to paper description, this list is not growing but pre-initialised and gradually replaced
-        self.keys = Parameter(torch.ones(self.capacity, self.key_size) * 1e8) # use very large values to allow for low similarity with keys while warming up
+        self.keys = Parameter(torch.ones(self.capacity, self.key_size) * 1e6) # use large values to allow for low similarity with keys while warming up
         self.values = Parameter(torch.zeros(self.capacity))
 
         self.keys_hash = {} # one idea is to use actual index as value in this hash
