@@ -79,7 +79,7 @@ def test_lookup():
     weights = np.array([id_krnl(0), id_krnl(1.)])
     expected = ((weights / weights.sum()) * [8., 2.]).sum()
     assert np.array_equal(dnd.last_used, np.array([0, 0, 4, 3]))
-    assert np.isclose(value, expected)
+    assert np.isclose(value, expected, atol=1e-3)
 
     # test with no exact match
     dnd.keys = Parameter(torch.tensor([
@@ -93,7 +93,7 @@ def test_lookup():
     weights = np.array([id_krnl(1)] * 2)
     expected = ((weights / weights.sum()) * [2., 5.]).sum()
     assert np.array_equal(dnd.last_used, np.array([1, 0, 5, 0]))
-    assert np.isclose(value, expected)
+    assert np.isclose(value, expected, atol=1e-3)
 
 def test_forward():
     dnd = DND(config)
@@ -125,7 +125,7 @@ def test_forward():
 
     assert values.grad_fn is not None
     assert np.array_equal(dnd.last_used, np.array([0, 0, 3, 0]))
-    assert np.allclose(values.detach().numpy(), expected)
+    assert np.allclose(values.detach().numpy(), expected, atol=1e-3)
 
 
 def test_update_batch():
