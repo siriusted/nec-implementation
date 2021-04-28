@@ -96,10 +96,12 @@ if __name__ == "__main__":
     torch.manual_seed(seed)
     random.seed(seed)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    if device == torch.device("cuda"):
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
         torch.cuda.manual_seed(seed)
+    else:
+        device = torch.device("cpu")
+
 
     config = {
         "env": env,

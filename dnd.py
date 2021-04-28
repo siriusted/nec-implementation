@@ -25,7 +25,7 @@ def _knn_search(queries, data, k):
 
     Return the k nearest keys
     """
-    if queries.device == data.device == torch.device('cuda'):
+    if torch.cuda.is_available(): # not the best way but should let me know that gpu is being used
         return faiss.knn_gpu(queries, data, k)
 
     if type(queries) is torch.Tensor:
