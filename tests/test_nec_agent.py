@@ -82,6 +82,7 @@ def test_nec():
         "env": env,
         "env_name": "test_env",
         "exp_name": "test",
+        "device": torch.device("cpu"),
         "max_steps": 40,
         "initial_epsilon": 1,
         "final_epsilon": 0.5,
