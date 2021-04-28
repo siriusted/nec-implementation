@@ -28,10 +28,10 @@ class NEC(nn.Module):
         To be used during environment interaction to get Q-values for a single state
         """
         with torch.no_grad():
-            key = self.embedding_net(obs)
+            key = self.embedding_net(obs.unsqueeze(0))
             qs = [dnd.lookup(key) for dnd in self.dnds]
 
-            return qs, key
+            return qs, key.squeeze(0) # remove batch dimension
 
     def update_memory(self, action, keys, values):
         """

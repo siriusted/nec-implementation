@@ -6,7 +6,7 @@ class ReplayBuffer:
     def __init__(self, observation_shape, capacity = 100000):
         self.capacity = capacity
         self.actions = np.empty((capacity, ), dtype = np.int64)
-        self.observations = np.empty((capacity, observation_shape), dtype = np.float32)
+        self.observations = np.empty((capacity, ) + observation_shape, dtype = np.float32)
         self.returns = np.empty((capacity, ), dtype = np.float32)
         self.idx = 0
         self.effective_size = 0

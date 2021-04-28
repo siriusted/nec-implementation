@@ -5,7 +5,8 @@ from torch import nn
 from tqdm import tqdm
 from logging import ERROR
 from nec_agent import NECAgent
-from embedding_models import DQN, MLP
+from environments import AtariEnv
+from embedding_models import DQN, DQN_EC, MLP
 import matplotlib.pyplot as plt
 import random
 
@@ -16,6 +17,7 @@ def run_evaluation(config, path, episodes=50):
     env = config["env"]
     agent = NECAgent(config)
     agent.nec_net.load_state_dict(torch.load(path))
+    env.eval()
     agent.eval()
 
     rewards = []
@@ -44,7 +46,7 @@ def run_evaluation(config, path, episodes=50):
 
 def run_training(config, return_agent=False):
     env = config["env"]
-
+    env.train()
     agent = NECAgent(config)
 
     done = True
@@ -58,7 +60,7 @@ def run_training(config, return_agent=False):
             epsilon -= (config["initial_epsilon"] - config["final_epsilon"]) / (config["epsilon_anneal_end"] - config["epsilon_anneal_start"])
             agent.set_epsilon(epsilon)
 
-        # env.render(mode='rgb-array')
+        # env.render()
         if type(obs) is np.ndarray:
             obs = torch.from_numpy(np.float32(obs))
         action = agent.step(obs.to(config['device']))
@@ -83,14 +85,7 @@ def run_training(config, return_agent=False):
         return agent
 
 if __name__ == "__main__":
-    env_name = "CartPole-v1"#"Acrobot-v1"#"MountainCar-v0"
-    env = gym.make(env_name)
-    key_size = 4
-    horizon = 50
-    in_size = env.observation_space.shape[0]
-    hidden = 16
     seed = 245
-    exp_name = f"{env_name}_mlp{in_size}_{hidden}_{key_size}_capacity_10000"
 
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -102,17 +97,35 @@ if __name__ == "__main__":
     else:
         device = torch.device("cpu")
 
+    env_name = "Pong"#"CartPole-v1"#"Acrobot-v1"#"MountainCar-v0"
+    env_config = {
+        "seed": seed,
+        "game": "pong",
+        "device": device,
+        "max_episode_length": int(108e3),
+        "history_length": 4,
+    }
+
+    env = AtariEnv(env_config) #gym.make(env_name)
+    key_size = 128
+    horizon = 100
+    # in_size = env.observation_space.shape[0]
+    # hidden = 16
+    exp_name = f"{env_name}_{key_size}_capacity50k"#f"{env_name}_mlp{in_size}_{hidden}_{key_size}_capacity_10000"
+
+
+
 
     config = {
         "env": env,
-        "max_steps": 100_000,
+        "max_steps": 10_000_000,
         "initial_epsilon": 1,
         "final_epsilon": 0.001,
-        "epsilon_anneal_start": 1,
-        "epsilon_anneal_end": 2000,
-        "start_learning_step": 1,
+        "epsilon_anneal_start": 5000,
+        "epsilon_anneal_end": 25000,
+        "start_learning_step": 50000,
         "replay_frequency": 4,
-        "eval_frequency": 100_000, # no eval for now
+        "eval_frequency": 10_000_000, # no eval for now
         "device": device,
         ###### NEC AGENT CONFIG #################
         "env_name": env_name,
@@ -120,24 +133,26 @@ if __name__ == "__main__":
         "train_eps": 1, # initializing agent to be fully exploratory
         "eval_eps": 0,
         "num_actions": env.action_space.n,
-        "observation_shape": env.observation_space.shape[0],
-        "replay_buffer_size": 100000,
+        "observation_shape": env.observation_space.shape,
+        "replay_buffer_size": 100_000,
         "batch_size": 32,
-        "discount": 1,
+        "discount": 0.99,
         "horizon": horizon,
-        "learning_rate": 0.01,
+        "learning_rate": 7.92468721e-6,#0.01,
         ###### NEC CONFIG #######################
-        "embedding_net": MLP(in_size, hidden, key_size),
+        "embedding_net": DQN_EC(key_size),
         ###### DND CONFIG #######################
-        "dnd_capacity": 10000,
+        "dnd_capacity": 500_000,
         "num_neighbours": 50,
         "key_size": key_size,
-        "alpha": 0.9,
+        "alpha": 0.1,
     }
 
 
 
-    run_training(config)
+    agent = run_training(config, True)
+    path = f'{os.getcwd()}/pong/trained_agents/nec_{agent.exp_name}.pth'
+    torch.save(agent.nec_net.state_dict(), path)
     # run_evaluation(config, f'cartpole/trained_agents/nec_{exp_name}.pth')
 
     #TODO: run an experiment with pong and plot the data

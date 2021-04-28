@@ -106,7 +106,7 @@ class DND(nn.Module):
         4. return desired Q
         """
         with torch.no_grad():
-            sq_distances, neighbour_idxs = _knn_search(key.unsqueeze(0), self.keys, self.num_neighbours)
+            sq_distances, neighbour_idxs = _knn_search(key, self.keys, self.num_neighbours)
 
             # maintain lru here
             self.last_used += 1 # increment time last used for all keys

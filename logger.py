@@ -33,25 +33,25 @@ class ScoreLogger:
                        x_label="Episodes",
                        y_label="Total reward",
                        average_of_n_last=CONSECUTIVE_RUNS_TO_SOLVE,
-                       show_goal=True,
+                       show_goal=False,
                        show_trend=True,
                        show_legend=True)
         self.scores.append(score)
         mean_score = mean(self.scores)
         print(f"Scores: (score: {str(score)} min: {str(min(self.scores))}, avg: {str(mean_score)}, max:  {str(max(self.scores))})\n")
-        if mean_score >= AVERAGE_SCORE_TO_SOLVE and len(self.scores) >= CONSECUTIVE_RUNS_TO_SOLVE:
-            solve_score = run-CONSECUTIVE_RUNS_TO_SOLVE
-            print(f"Solved in {str(solve_score)} episodes, {str(run)} total episodes.")
-            self._save_csv(self.SOLVED_CSV_PATH, solve_score)
-            self._save_png(input_path=self.SOLVED_CSV_PATH,
-                           output_path=self.SOLVED_PNG_PATH,
-                           x_label="trials",
-                           y_label="steps before solve",
-                           average_of_n_last=None,
-                           show_goal=False,
-                           show_trend=False,
-                           show_legend=False)
-            return True
+        # if mean_score >= AVERAGE_SCORE_TO_SOLVE and len(self.scores) >= CONSECUTIVE_RUNS_TO_SOLVE:
+        #     solve_score = run-CONSECUTIVE_RUNS_TO_SOLVE
+        #     print(f"Solved in {str(solve_score)} episodes, {str(run)} total episodes.")
+        #     self._save_csv(self.SOLVED_CSV_PATH, solve_score)
+        #     self._save_png(input_path=self.SOLVED_CSV_PATH,
+        #                    output_path=self.SOLVED_PNG_PATH,
+        #                    x_label="trials",
+        #                    y_label="steps before solve",
+        #                    average_of_n_last=None,
+        #                    show_goal=False,
+        #                    show_trend=False,
+        #                    show_legend=False)
+        #     return True
 
         return False
 
