@@ -21,10 +21,13 @@ def _inverse_distance_kernel(sq_distances, delta = 1e-3):
 
 def _knn_search(queries, data, k):
     """
-    Perform exact knn search (should be replaced with approximate and extended to utilize GPU)
+    Perform exact knn search (should be replaced with approximate)
 
     Return the k nearest keys
     """
+    if queries.device == data.device == torch.device('cuda'):
+        return faiss.knn_gpu(queries, data, k)
+
     if type(queries) is torch.Tensor:
         queries, data = queries.detach().numpy(), data.detach().numpy()
 
@@ -34,7 +37,7 @@ def _combine_by_key(keys, values, op):
     """
     Combines duplicate keys' values using the operator op (max or mean)
     """
-    keys = [tuple(key.detach().numpy()) for key in keys]
+    keys = [tuple(key) for key in keys.detach().cpu().numpy()]
     ks, vs = [], []
     key_map = {}
 
@@ -78,10 +81,11 @@ class DND(nn.Module):
         self.num_neighbours = config['num_neighbours']
         self.key_size = config['key_size']
         self.alpha = config['alpha']
+        self.device = config['device']
 
         # opposed to paper description, this list is not growing but pre-initialised and gradually replaced
-        self.keys = Parameter(torch.ones(self.capacity, self.key_size) * 1e6) # use large values to allow for low similarity with keys while warming up
-        self.values = Parameter(torch.zeros(self.capacity))
+        self.keys = Parameter(torch.ones(self.capacity, self.key_size, device=config['device']) * 1e6) # use large values to allow for low similarity with keys while warming up
+        self.values = Parameter(torch.zeros(self.capacity, device=config['device']))
 
         self.keys_hash = {} # one idea is to use actual index as value in this hash
         self.last_used = np.linspace(self.capacity, 1, self.capacity, dtype=np.uint32) # used to manage lru replacement
@@ -108,7 +112,7 @@ class DND(nn.Module):
             self.last_used[neighbour_idxs.reshape(-1)] = 0 # reset time last used for neighbouring keys
 
             # compute the actual Q
-            w_i = _inverse_distance_kernel(torch.tensor(sq_distances))
+            w_i = _inverse_distance_kernel(torch.tensor(sq_distances, device=self.device))
             w_i /= torch.sum(w_i)
             v_i = self.values[neighbour_idxs]
 
@@ -168,7 +172,7 @@ class DND(nn.Module):
 
         with torch.no_grad():
             # make tensors for fancy indexing and easy interoperability with self.keys and self.values
-            keys, values = torch.tensor(keys), torch.tensor(values)
+            keys, values = torch.tensor(keys, device=self.device), torch.tensor(values, device=self.device)
 
             # update exact matches using dnd learning rate
             if num_matches:
@@ -188,7 +192,7 @@ class DND(nn.Module):
                 for idx in lru_idxs:
                     if idx in inv_hash:
                         del self.keys_hash[inv_hash[idx]]
-                    self.keys_hash[tuple(self.keys[idx].detach().numpy())] = idx
+                    self.keys_hash[tuple(self.keys[idx].detach().cpu().numpy())] = idx
 
 
     def update(self):

@@ -60,7 +60,7 @@ def run_training(config, return_agent=False):
         # env.render(mode='rgb-array')
         if type(obs) is np.ndarray:
             obs = torch.from_numpy(np.float32(obs))
-        action = agent.step(obs)
+        action = agent.step(obs.to(config['device']))
         next_obs, reward, done, info = env.step(action)
         solved = agent.update((reward, done))
 
@@ -82,7 +82,7 @@ def run_training(config, return_agent=False):
         return agent
 
 if __name__ == "__main__":
-    env_name = "Acrobot-v1"#"MountainCar-v0" #"CartPole-v1"
+    env_name = "CartPole-v1"#"Acrobot-v1"#"MountainCar-v0"
     env = gym.make(env_name)
     key_size = 4
     horizon = 50
@@ -94,6 +94,8 @@ if __name__ == "__main__":
     np.random.seed(seed)
     torch.manual_seed(seed)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     config = {
         "env": env,
         "max_steps": 100_000,
@@ -104,6 +106,7 @@ if __name__ == "__main__":
         "start_learning_step": 1,
         "replay_frequency": 4,
         "eval_frequency": 100_000, # no eval for now
+        "device": device,
         ###### NEC AGENT CONFIG #################
         "env_name": env_name,
         "exp_name": exp_name,

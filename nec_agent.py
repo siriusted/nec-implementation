@@ -20,7 +20,7 @@ class NECAgent:
     """
 
     def __init__(self, config):
-        self.nec_net = NEC(config)
+        self.nec_net = NEC(config).to(config['device'])
         self.train_eps = config['train_eps']
         self.eval_eps = config['eval_eps']
         self.num_actions = config['num_actions']
@@ -32,6 +32,7 @@ class NECAgent:
         self.logger = ScoreLogger(config['env_name'], config['exp_name'])
         self.env_name = config['env_name']
         self.exp_name = config['exp_name']
+        self.device = config['device']
         self.train()
 
         # make sure model is on appropriate device at this point before constructing optimizer
@@ -103,7 +104,7 @@ class NECAgent:
             self.keys, n_step_returns = torch.stack(self.keys), np.array(n_step_returns, dtype = np.float32) # for fancy indexing
 
             # batch update of replay memory
-            self.replay_buffer.append_batch(np.stack(self.observations), np.asarray(self.actions, dtype = np.uint8), n_step_returns)
+            self.replay_buffer.append_batch(np.stack(self.observations), np.asarray(self.actions, dtype = np.int64), n_step_returns)
 
             # batch update of episodic memories
             unique_actions = np.unique(self.actions)
@@ -129,8 +130,8 @@ class NECAgent:
 
         observations, actions, returns = self.replay_buffer.sample(self.batch_size)
         self.optimizer.zero_grad()
-        q_values = self.nec_net(observations)[range(self.batch_size), actions] # pick q_values for chosen actions
-        loss = self.loss_fn(q_values, returns)
+        q_values = self.nec_net(observations.to(self.device))[range(self.batch_size), actions] # pick q_values for chosen actions
+        loss = self.loss_fn(q_values, returns.to(self.device))
         loss.backward()
         self.optimizer.step()
 

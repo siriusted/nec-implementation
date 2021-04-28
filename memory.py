@@ -36,6 +36,3 @@ class ReplayBuffer:
         returns effective size of the replay buffer
         """
         return self.effective_size
-if __name__ == "__main__":
-    #TODO: write unit tests
-    pass
