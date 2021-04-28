@@ -7,6 +7,7 @@ from logging import ERROR
 from nec_agent import NECAgent
 from embedding_models import DQN, MLP
 import matplotlib.pyplot as plt
+import random
 
 gym.logger.set_level(ERROR)  # Ignore warnings from Gym logger
 # torch.autograd.set_detect_anomaly(True) # detect anomaly
@@ -93,8 +94,12 @@ if __name__ == "__main__":
 
     np.random.seed(seed)
     torch.manual_seed(seed)
+    random.seed(seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if device == torch.device("cuda"):
+        torch.cuda.manual_seed(seed)
 
     config = {
         "env": env,
