@@ -5,13 +5,6 @@ import faiss.contrib.torch_utils # allows utilizing torch tensors as input to fa
 from torch import nn
 from torch.nn import functional as F, Parameter
 
-def torch_replace_knn(xq, xb, k, metric=faiss.METRIC_L2):
-    if type(xb) is np.ndarray:
-        return faiss.knn_numpy(xq, xb, k, metric)
-
-    #TO BE COMPLETED later for fun
-    # for now just call .numpy() on torch tensors
-
 def _inverse_distance_kernel(sq_distances, delta = 1e-3):
     """
     Kernel used in Pritzel et. al, 2017
@@ -27,12 +20,11 @@ def _knn_search(queries, data, k):
     """
     if torch.cuda.is_available(): # not the best way but should let me know that gpu is being used
         res = faiss.StandardGpuResources()
-        return faiss.knn_gpu(res, queries, data, k)
+        D, I = faiss.knn_gpu(res, queries, data, k)
+        return D.detach().cpu().numpy(), I.detach().cpu().numpy()
 
-    if type(queries) is torch.Tensor:
-        queries, data = queries.detach().numpy(), data.detach().numpy()
-
-    return faiss.knn(queries, data, k) # (distances, indexes)
+    queries, data = queries.detach().numpy(), data.detach().numpy()
+    return faiss.knn(queries, data, k) #(distances, indices)
 
 def _combine_by_key(keys, values, op):
     """

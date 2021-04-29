@@ -77,9 +77,11 @@ def run_training(config, return_agent=False):
                 agent.optimize()
 
             if t % config["eval_frequency"] == 0:
-                agent.eval()
-                # evaluate agent here #
-                agent.train()
+                # agent.eval()
+                # # evaluate agent here #
+                path = f'{os.getcwd()}/pong/trained_agents/nec_{agent.exp_name}_{t // config["eval_frequency"]}.pth'
+                torch.save(agent.nec_net.state_dict(), path)
+                # agent.train()
 
     if return_agent:
         return agent
@@ -111,7 +113,7 @@ if __name__ == "__main__":
     horizon = 100
     # in_size = env.observation_space.shape[0]
     # hidden = 16
-    exp_name = f"{env_name}_{key_size}_capacity50k"#f"{env_name}_mlp{in_size}_{hidden}_{key_size}_capacity_10000"
+    exp_name = f"{env_name}_{key_size}_capacity500k"#f"{env_name}_mlp{in_size}_{hidden}_{key_size}_capacity_10000"
 
 
 
@@ -125,7 +127,7 @@ if __name__ == "__main__":
         "epsilon_anneal_end": 25000,
         "start_learning_step": 50000,
         "replay_frequency": 4,
-        "eval_frequency": 100_000,
+        "eval_frequency": 10_000,
         "device": device,
         ###### NEC AGENT CONFIG #################
         "env_name": env_name,
@@ -153,7 +155,7 @@ if __name__ == "__main__":
 
 
     agent = run_training(config, True)
-    path = f'{os.getcwd()}/pong/trained_agents/nec_{agent.exp_name}.pth'
+    path = f'{os.getcwd()}/pong/trained_agents/nec_{agent.exp_name}_final.pth'
     torch.save(agent.nec_net.state_dict(), path)
     # run_evaluation(config, f'cartpole/trained_agents/nec_{exp_name}.pth')
 
