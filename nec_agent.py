@@ -36,7 +36,7 @@ class NECAgent:
         self.train()
 
         # make sure model is on appropriate device at this point before constructing optimizer
-        self.optimizer = RMSprop(self.nec_net.parameters(), lr = config['learning_rate'])
+        self.optimizer = RMSprop(self.nec_net.parameters(), lr = config['learning_rate'], alpha = config['rmsprop_alpha'], eps = config['rmsprop_epsilon'])
         self.loss_fn = MSELoss()
 
 

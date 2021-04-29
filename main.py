@@ -120,12 +120,12 @@ if __name__ == "__main__":
         "env": env,
         "max_steps": 10_000_000,
         "initial_epsilon": 1,
-        "final_epsilon": 0.001,
+        "final_epsilon": 0.005,
         "epsilon_anneal_start": 5000,
         "epsilon_anneal_end": 25000,
         "start_learning_step": 50000,
         "replay_frequency": 4,
-        "eval_frequency": 10_000_000, # no eval for now
+        "eval_frequency": 100_000,
         "device": device,
         ###### NEC AGENT CONFIG #################
         "env_name": env_name,
@@ -139,6 +139,8 @@ if __name__ == "__main__":
         "discount": 0.99,
         "horizon": horizon,
         "learning_rate": 7.92468721e-6,#0.01,
+        "rmsprop_alpha": 0.95,
+        "rmsprop_epsilon": 1e-2,
         ###### NEC CONFIG #######################
         "embedding_net": DQN_EC(key_size),
         ###### DND CONFIG #######################
